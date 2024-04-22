@@ -32,8 +32,8 @@ export default function Home() {
 
           <ButtonWell className="text-right pr-4" 
             action={{ label: "Join", onClick: () => alert("Joining...") }}
-            cancel={{ onClick: () => alert("Cancelling...") }}
-            confirm={{ onClick: () => alert("Confirming...") }}
+            cancel={{ label: "Cancel" }}
+            confirm={{ label: "OK" }}
           />
           
         </ContentArea>

@@ -31,16 +31,11 @@ main {
 
 button {
   font-weight: 600;
-  @apply border border-white text-white py-2 px-4 rounded transition-colors
+  @apply border border-white text-white py-2 px-4 rounded transition-colors focus:border-gold-300 active:border-gold-400 hover:border-gold-300
 }
 
 button:focus {
-  @apply border-gold-400;
   outline: none;
-}
-
-button:active {
-  @apply border-gold-300;
 }
 
 button:not(:last-child) {
