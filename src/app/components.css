@@ -1,0 +1,69 @@
+.felt-effect {
+  height: 100vh;
+  width: 100%;
+  background-color: #4a752c; /* Base green similar to felt tables */
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.1) 0px,
+      rgba(255, 255, 255, 0.1) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    repeating-linear-gradient(
+      -90deg,
+      rgba(255, 255, 255, 0.1) 0px,
+      rgba(255, 255, 255, 0.1) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    linear-gradient(180deg, #4a752c 75%, #063108);
+  filter: contrast(150%) brightness(90%);
+}
+
+main {
+  @apply flex min-h-screen flex-col items-center justify-between px-8 pb-4 felt-effect text-white;
+}
+
+.inner-container {
+  @apply z-10 w-full max-w-5xl items-center justify-between text-sm
+}
+
+button {
+  font-weight: 600;
+  @apply border border-white text-white py-2 px-4 rounded transition-colors
+}
+
+button:focus {
+  @apply border-gold-400;
+  outline: none;
+}
+
+button:active {
+  @apply border-gold-300;
+}
+
+button:not(:last-child) {
+  @apply mr-2
+}
+
+.cancel {
+  @apply bg-red-400 hover:bg-red-500 focus:bg-red-500 active:bg-red-400
+}
+
+.confirm {
+  @apply bg-green-400 hover:bg-green-500 focus:bg-green-500 active:bg-green-400
+}
+
+.action {
+  @apply bg-blue-400 hover:bg-blue-500 focus:bg-blue-500 active:bg-blue-400
+}
+
+.bg-overlay {
+  background-image: linear-gradient(90deg, rgba(180,160,75,.75) 80%, rgba(180,160,75,.5) 100%);
+}
+
+.content-area {
+  @apply rounded-xl border border-gold-500 border-dashed bg-overlay overflow-y-scroll;
+  height: calc(100vh - 2rem - 72px);
+}

@@ -1,0 +1,37 @@
+.header-text {
+  @apply font-bold font-serif my-4 text-xl text-shadow-xs;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  @apply header-text;
+}
+
+h1 {
+  @apply text-2xl sm:text-4xl text-shadow-sm sm:text-shadow-md text-gold-400;
+}
+
+h2 {
+  @apply sm:text-3xl text-shadow-sm;
+}
+
+h3 {
+  @apply sm:text-2xl;
+}
+
+h5 {
+  @apply text-lg;
+}
+
+h6 {
+  @apply text-base;
+}
+
+p {
+  @apply font-sans mb-4 text-base;
+  font-weight: 500;
+}
+
+p.shadow {
+  @apply text-shadow-sm;
+}
+
