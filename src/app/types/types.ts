@@ -30,4 +30,20 @@ export type ButtonProps = {
   className?: string;
   onClick?: () => void;
   label?: string;
+  hidden?: boolean;
+  disabled?: boolean;
 } & MarginOptions & PositionOptions;
+
+export type PlayingCard = {
+  id: number;
+  name: string;
+  value?: number;
+  effect?: string;
+  short?: string;
+  group?: string; // "hearts", "diamonds", "clubs", "spades", "blue", "green", "red", "yellow", "wild", etc.
+};
+
+export type Deck = {
+  name: string;
+  cards: PlayingCard[];
+};

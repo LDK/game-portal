@@ -6,18 +6,20 @@ import Confirm from "./Confirm";
 type ButtonTypeProps = {
   label?: string;
   onClick?: () => void;
+  hidden?: boolean;
+  disabled?: boolean;
 };
 
 type ButtonWellProps = {
-  action?: ButtonTypeProps;
+  actions?: ButtonTypeProps[];
   cancel?: ButtonTypeProps;
   confirm?: ButtonTypeProps;
   className?: string;
 };
 
-const ButtonWell = ({ action, cancel, confirm, className }:ButtonWellProps):JSX.Element => (
+const ButtonWell = ({ actions, cancel, confirm, className }:ButtonWellProps):JSX.Element => (
   <Box className={`button-well${className ? ' ' + className : ''}`}>
-    {action && <Action {...action} />}
+    {actions && actions.map((action, index) => <Action key={index} {...action} />)}
     {cancel && <Cancel {...cancel} />}
     {confirm && <Confirm {...confirm} />}
   </Box>

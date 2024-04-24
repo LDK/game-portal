@@ -14,6 +14,7 @@ const config: Config = {
       "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ]},
   safelist: [
+    'bg-green', 'bg-red', 'bg-blue', 'bg-yellow', 'bg-black', // Uno colors
     { pattern: /^(p|m)(x|y|t|b|l|r)?-/ }, // padding and margin classes with optional x, y, t, b, l, r 
     { pattern: /^(position|top|bottom|left|right)/ }, // position classes
   ],

@@ -1,13 +1,18 @@
 'use client';
+import Link from "next/link";
 import Box from "./components/Box";
 import ContentArea from "./components/ContentArea";
 import ButtonWell from "./components/buttons/ButtonWell";
+
+export const SiteHeader = () => (
+  <h1><Link href="/">Rainy Days Game Portal</Link></h1>
+);
 
 export default function Home() {
   return (
     <main>
       <Box className="inner-container">
-        <h1>Rainy Days Game Portal</h1>
+        <SiteHeader />
 
         <ContentArea>
           <h2>Header</h2>
@@ -30,8 +35,8 @@ export default function Home() {
           <h5>Subsubsubheader</h5>
           <h6>Subsubsubsubheader</h6>
 
-          <ButtonWell className="text-right pr-4" 
-            action={{ label: "Join", onClick: () => alert("Joining...") }}
+          <ButtonWell className="text-right pr-4 pb-4 absolute bottom-0 right-0" 
+            actions={[{ label: "Join", onClick: () => alert("Joining...") }]}
             cancel={{ label: "Cancel" }}
             confirm={{ label: "OK" }}
           />
