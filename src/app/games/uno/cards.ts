@@ -132,14 +132,14 @@ export const deal = (players:UnoPlayer[], deck:UnoDeck, numCards:number = 7):Dea
 
 export const playableCards = (currentCard:PlayingCardUno, player:UnoPlayer):PlayingCardUno[] => {
   const matchingCards = player.cards.filter(card => card.face === currentCard.face || card.group === currentCard.group || card.name === "Wild");
-  const drawFours = player.cards.filter(card => card.name === "Wild - Draw Four");
+  const drawFours = player.cards.filter(card => card.name === "Draw Four");
+
+  console.log('drawFours', drawFours);
+  console.log('matchingCards', matchingCards);
 
   if (matchingCards.length === 0) {
-    console.log("Playable cards", drawFours);
     return drawFours; // This will either be empty or contain only Draw Four Wild cards
   }
-
-  console.log("Playable cards", matchingCards);
 
   return matchingCards;
 }

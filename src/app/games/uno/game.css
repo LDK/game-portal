@@ -15,6 +15,11 @@
     @apply text-2xl sm:text-3xl lg:text-4xl xl:text-5xl;
   }
 
+  .uno.hand {
+    height: 120px;
+    @apply w-auto;
+  }
+
   .uno.hand .playable {
     top: -1rem;
     z-index: 2;
