@@ -38,8 +38,7 @@ main {
 }
 
 button {
-  font-weight: 600;
-  @apply border border-white text-white py-2 px-4 rounded transition-colors focus:border-gold-300 active:border-gold-400 hover:border-gold-300 disabled:border-gray-400 disabled:bg-gray-400 disabled:text-gray-300 disabled:hover:border-gray-400 disabled:hover:bg-gray-400 disabled:hover:text-gray-300 disabled:cursor-not-allowed disabled:font-normal disabled:italic
+  @apply border border-white text-white py-2 px-4 rounded transition-colors focus:border-gold-300 active:border-gold-400 hover:border-gold-300 disabled:border-gray-400 disabled:bg-gray-400 disabled:text-gray-300 disabled:hover:border-gray-400 disabled:hover:bg-gray-400 disabled:hover:text-gray-300 disabled:cursor-not-allowed disabled:font-thin disabled:italic font-normal
 }
 
 button:focus {
@@ -48,6 +47,10 @@ button:focus {
 
 button:not(:last-child) {
   @apply mr-2
+}
+
+.game-log, .scoreboard {
+  @apply flex flex-col items-center justify-center w-full h-1/2 overflow-y-auto bg-white bg-opacity-50 rounded-lg p-4 text-black
 }
 
 .cancel {
@@ -111,5 +114,9 @@ html {
 
   .playing-card {
     @apply card-size-xs sm:card-size-sm md:card-size lg:card-size-lg xl:card-size-xl
+  }
+  .playable .playing-card {
+    @apply cursor-pointer;
+    border-color: #5ee0f6 !important;
   }
 }

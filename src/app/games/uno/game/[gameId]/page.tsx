@@ -1,14 +1,25 @@
 'use client';
 import ContentArea from "@/app/components/ContentArea";
 import ButtonWell from "@/app/components/buttons/ButtonWell";
-import { useState, useEffect, useRef } from "react";
-import { UnoDeck, PlayingCardUno, CardColor, deal, playableCards, buildDeck, shuffleDeck } from "../../cards";
+import { useState, useEffect } from "react";
+import { playableCards, buildDeck, shuffleDeck, cardFromCode } from "@/app/games/uno/cards";
 import Box from "@/app/components/Box";
-import { SiteHeader } from "@/app/page";
-import "../../game.css";
-import Action from "@/app/components/buttons/Action";
+import "@/app/games/uno/game.css";
 import Button from "@/app/components/buttons/Button";
-import { CurrentCard, UnoCard } from "../../components/cards";
+import { CurrentCard, UserHand, playerByTurnOrder } from "@/app/games/uno/components/cards";
+import { cpuTurn, pickColor } from "@/app/games/uno/gameplay";
+import GameLog from "@/app/games/uno/components/GameLog";
+import { UnoDeck, UnoPlayer, PlayingCardUno, UnoGameState, CardColor, UnoLogEntry } from "@/app/games/uno/types";
+import PlayersDisplay from "@/app/games/uno/components/Players";
+import { usePathname, useRouter } from "next/navigation";
+import SiteHeader from "@/app/components/SiteHeader";
+import { AxiosResponse } from "axios";
+import useApi from "@/app/hooks/useApi";
+import useUser from "@/app/hooks/useUser";
+import { PortalUser } from "@/app/redux/user";
+import { startButton, joinButton, deleteButton, leaveButton } from "@/app/games/uno/buttons";
+import Scoreboard from "../../components/Scoreboard";
+// import { cpuPlayer } from "../../gameplay";
 
 const gameDeck:UnoDeck = shuffleDeck(buildDeck());
 
@@ -17,499 +28,360 @@ const NORMAL = 1000;
 const FAST = 500;
 const LIGHTNING = 250;
 
-export type UnoPlayer = {
-  cards: PlayingCardUno[];
-  score: number;
-  order: number;
-  name: string;
-  cpu: boolean;
-  ready: boolean;
-  isCurrentUser: boolean;
-};
-
 const startingHandSize = 7;
-
-const demoPlayers:UnoPlayer[] = [
-  {
-    name: 'Daniel',
-    isCurrentUser: true,
-    order: 1,
-    cpu: false,
-    ready: false,
-    score: 0,
-    cards: []
-  },
-  {
-    name: 'Mary',
-    isCurrentUser: false,
-    order: 2,
-    cpu: true,
-    ready: false,
-    score: 0,
-    cards: []
-  },
-  {
-    name: 'Henri',
-    isCurrentUser: false,
-    order: 3,
-    cpu: true,
-    ready: false,
-    score: 0,
-    cards: []
-  },
-  {
-    name: 'Pat',
-    isCurrentUser: false,
-    order: 4,
-    cpu: true,
-    ready: false,
-    score: 0,
-    cards: []
-  }
-];
-
-type UnoLogEntry = {
-  turnOrder: number;
-  act: 'd' | 'p' | 's' | 'd2' | 'd4' | 'w' | 'v'; // draw, play, skip, draw 2, draw 4, wild, victory
-  group?: CardColor;
-  face?: string;
-};
+const cpuPlayerCount = 3;
 
 const UnoGame = () => {
   // Generic game state variables
-  const [ready, setReady] = useState<number>(0);
   const [turnOrder, setTurnOrder] = useState<number>(1);
   const [started, setStarted] = useState<boolean>(false);
+  const [effectText, setEffectText] = useState<string | null>(null);
+  const [maxPlayers, setMaxPlayers] = useState<number>(4);
 
-  // Uno-specific game state variables
-  const [deck, setDeck] = useState<UnoDeck>(gameDeck); // deck also serves as the draw pile
+  const pathName = usePathname();
+  const gameId = pathName.split('/').pop();
+
+  const router = useRouter();
+
+  const { user } = useUser();
+
+  if (!gameId || isNaN(parseInt(gameId))) {
+    router.push('/uno');
+  }
+
+    // Uno-specific game state variables
+  const [deck, setDeck] = useState<UnoDeck>(gameDeck);
   const [cpuSpeed, setCpuSpeed] = useState<number>(NORMAL);
   const [currentCard, setCurrentCard] = useState<PlayingCardUno | null>(null);
   const [discardPile, setDiscardPile] = useState<PlayingCardUno[]>([]);
   const [reverse, setReverse] = useState<boolean>(false);
-  const [players, setPlayers] = useState<UnoPlayer[]>(demoPlayers);
+  const [players, setPlayers] = useState<UnoPlayer[]>([]);
   const [pointLimit, setPointLimit] = useState<number>(500);
   const [gameLog, setGameLog] = useState<UnoLogEntry[]>([]);
   const [winner, setWinner] = useState<UnoPlayer | null>(null);
+  const [roundWinner, setRoundWinner] = useState<UnoPlayer | null>(null);
   const [pickingColor, setPickingColor] = useState<UnoPlayer | null>(null);
+  const [wildColor, setWildColor] = useState<CardColor | undefined>(undefined);
 
-  const pickColor = (player:UnoPlayer, color:CardColor) => {
-    if (!player || !color || !currentCard) return;
+  const [userStarter, setUserStarter] = useState<boolean>(false);
+  const [userJoined, setUserJoined] = useState<boolean>(false);
 
-    setCurrentCard({ ...currentCard, group: color as CardColor });
-    const isDrawFour = currentCard.effect === "draw-four";
-    setGameLog([...gameLog, { turnOrder: turnOrder, act: 'w', group: color }]);
-    nextTurn(reverse, turnOrder, players, isDrawFour ? 2 : 1);
-    setPickingColor(null);
-  }
+  const { apiGet, apiPost } = useApi();
 
-  const LogEntry = ({ entry }: { entry: UnoLogEntry }) => {
-    const player = playerByTurnOrder(entry.turnOrder);
+  const updateGameState = (state:UnoGameState) => {
+    // if (!state.turnOrder) {
+    //   console.log('TURN ORDER 0', state);
+    // }
+    console.log('state', state);
+    setPlayers(state.players);
+    setDeck(state.deck);
+    setDiscardPile(state.discardPile);
+    setGameLog(state.gameLog || []);
+    setTurnOrder(state.turnOrder);
+    setReverse(state.reverse);
+    setCurrentCard(state.currentCard);
+    setPickingColor(state.pickingColor);
+    setEffectText(state.effectText);
+    setWinner(state.winner);
+    setRoundWinner(state.roundWinner);
+    setStarted(Boolean(state.started));
+    setWildColor(state.wildColor);
 
-    if (!player) return null;
+    // console.log('state', state);
+  };
 
-    let logMessage:string = '';
+  const fetchGame = async () => {
+    apiGet({
+      uri: `http://localhost:8000/uno/game/${gameId}`,
+      onSuccess: (response) => {
+        // console.log('response', response);
+        let newPlayers = prepPlayers(response, setUserStarter, user, setUserJoined);
+        console.log('roundWinner', response.data.roundWinner);
+        let newState = { ...response.data, gameLog: response.data.game_log, turnOrder: response.data.turn_order, started: Boolean(response.data.date_started), players: newPlayers, roundWinner: response.data.roundWinner || null, currentCard: response.data.current ? cardFromCode(response.data.current) : null };
 
-    switch (entry.act) {
-      case 'd':
-        logMessage = `${player.name} draws a card`;
-        break;
-      case 'p':
-        logMessage = `${player.name} plays a ${entry.group} ${entry.face}`;
-        break;
-      case 's':
-        logMessage = `${player.name} is skipped`;
-        break;
-      case 'd2':
-        logMessage = `${player.name} draws two cards`;
-        break;
-      case 'd4':
-        logMessage = `${player.name} draws four cards`;
-        break;
-      case 'w':
-        logMessage = `${player.name} changes the color to ${entry.group}`;
-        break;
-      case 'v':
-        logMessage = `${player.name} wins!`;
-        break;
-    }
+        if (response.data.maxPlayers) {
+          setMaxPlayers(response.data.maxPlayers);
+        }
 
-    if (!logMessage.length) return null;
-
-    return (
-      <p>{logMessage}</p>
-    );
-  }
-
-  const GameLog = () => {
-    const gameLogEndRef = useRef<HTMLDivElement>(null);
-    
-    useEffect(() => {
-      if (gameLogEndRef.current) {
-        gameLogEndRef.current.scrollIntoView();
+        if (['wd4','w'].includes(response.data.current)) {
+          newState.pickingColor = playerByTurnOrder(response.data.turn_order, newPlayers);
+        }
+        // console.log('newPlayers', newPlayers);
+        updateGameState(newState);
+      },
+      onError: (error) => {
+        console.error('error', error);
       }
-    }, [gameLog]);
+    });
+  };
 
-    return (
-      <div className="game-log overflow-y-scroll absolute top-0 right-0 h-64">
-        {gameLog.map((entry, idx) => <LogEntry key={idx} entry={entry} />)}
-        <div ref={gameLogEndRef} />
-      </div>
-    );
-  }
+  useEffect(() => {
+    fetchGame();
+    const gameCheck = setInterval(() => {
+      fetchGame();
+    }, 5000);
+
+    return () => {
+      clearInterval(gameCheck);
+    } 
+  }, []);
+
 
   const handleCardClick = (card:PlayingCardUno, player:UnoPlayer) => {
     if (!started || Boolean(winner)) return;
 
-    const playables = playableCards(currentCard as PlayingCardUno, player);
+    const playables = playableCards(currentCard as PlayingCardUno, player, wildColor);
 
     if (!playables.includes(card)) {
       return;
     }
 
-    playCard(card, player);
+    apiPost({
+      uri: `http://localhost:8000/uno/game/${gameId}/move`,
+      payload: { action: 'play', card: card },
+      onSuccess: (response) => {
+        const newPlayers = prepPlayers(response, setUserStarter, user, setUserJoined);
+        let newState = { ...response.data, gameLog: response.data.game_log, turnOrder: response.data.turn_order, started: Boolean(response.data.date_started), players: newPlayers, currentCard: response.data.current ? cardFromCode(response.data.current) : null };
+        newState.pickingColor = card.group === 'Wild' ? playerByTurnOrder(response.data.turn_order, newPlayers) : null;
+        console.log('newState', newState);
+        updateGameState(newState);
+      },
+      onError: (error) => {
+        console.error('error', error);
+      }
+    });
   };
+
+  const processGameState = (response: AxiosResponse<any,any>) => {
+    const newPlayers = prepPlayers(response, setUserStarter, user, setUserJoined);
+    const newState = { ...response.data, gameLog: response.data.game_log, turnOrder: response.data.turn_order, started: Boolean(response.data.date_started), players: response.data.players, currentCard: response.data.current ? cardFromCode(response.data.current) : null };
+
+    if (['wd4','w'].includes(response.data.current)) {
+      newState.pickingColor = playerByTurnOrder(response.data.turn_order, newPlayers);
+    }
+
+    updateGameState(newState);
+  };
+
+  const processGameStateError = (error: any) => {
+    console.error('error', error);
+  }
 
   const handleStartGame = () => {
-      setStarted(true);
+    apiPost({
+      uri: `http://localhost:8000/uno/game/${gameId}/start`,
+      payload: { },
+      onSuccess: processGameState,
+      onError: processGameStateError
+    });
   };
 
-  const playerByTurnOrder = (order:number):UnoPlayer => {
-    return players.find(player => player.order === (order || 1)) as UnoPlayer;
-  }
-
-  const nextTurn = (newReverse: boolean, turnOrder: number, players: UnoPlayer[], turnFactor: number) => {
-    console.log('Next Turn', newReverse, turnOrder, players, turnFactor);
-    let newTurnOrder = turnOrder;
-
-    if (newReverse) {
-      newTurnOrder = (turnOrder === 1 ? players.length + 1 - turnFactor : turnOrder - turnFactor);
-    } else {
-      newTurnOrder = (turnOrder === players.length ? turnFactor : turnOrder + turnFactor);
-    }
-    
-    if (newTurnOrder > players.length) {
-      newTurnOrder = newTurnOrder - players.length;
-    } else if (newTurnOrder < 1) {
-      newTurnOrder = players.length + newTurnOrder;
-    }
-
-    console.log('New Turn Order', newTurnOrder);
-    setTurnOrder(newTurnOrder);
-  }  
-
-  const playCard = (card:PlayingCardUno, player:UnoPlayer) => {
-    if (!card) return;
-
-    const win = player.cards.length === 1;
-
-    let newPlayers = players.map(p => {
-      if (p.name === player.name) {
-        return {
-          ...p,
-          cards: p.cards.filter(c => c.id !== card.id)
-        };
-      }
-
-      return p;
+  const handleJoinGame = () => {
+    apiPost({
+      uri: `http://localhost:8000/uno/game/${gameId}/join`,
+      payload: { },
+      onSuccess: (response) => {
+        processGameState(response);
+        setUserJoined(true);
+      },
+      onError: processGameStateError
     });
-
-    setPlayers(newPlayers);
-    setCurrentCard(card);
-    setDiscardPile([card, ...discardPile]);
-
-    const newReverse = card.effect === "reverse" ? !reverse : reverse;
-
-    if (newReverse !== reverse) {
-      setReverse(newReverse);
-    }
-
-    const turnFactor = (card.effect === "skip" || card.effect?.includes("draw")) ? 2 : 1;
-
-    let newGameLog = gameLog;
-
-    newGameLog = [...gameLog, { turnOrder, act: 'p', group: card.group as CardColor, face: card.face }];
-
-    if (['skip', 'draw-two', 'draw-four'].includes(card.effect as string)) {
-      let targetOrder = reverse ? turnOrder - 1 : turnOrder + 1;
-      if (targetOrder === 0) {
-        targetOrder = players.length;
-      } else if (targetOrder > players.length) {
-        targetOrder = 1;
-      }
-
-      switch (card.effect) {
-        case 'skip':
-          newGameLog = [...newGameLog, { turnOrder: targetOrder, act: 's' }];
-          break;
-        case 'draw-two':
-          newGameLog = [...newGameLog, { turnOrder: targetOrder, act: 'd2' }];
-          // draw(deck, playerByTurnOrder(targetOrder), 2, newPlayers);
-          const { players: afterDrawTwoPlayers } = draw(deck, playerByTurnOrder(targetOrder), 2, newPlayers);
-          setPlayers(afterDrawTwoPlayers);
-          break;
-        case 'draw-four':
-          newGameLog = [...newGameLog, { turnOrder: targetOrder, act: 'd4' }];
-          const { players: afterDrawFourPlayers } = draw(deck, playerByTurnOrder(targetOrder), 4, newPlayers);
-          setPlayers(afterDrawFourPlayers);
-          break;
-      }
-    }
-
-    if (win) {
-      newGameLog = [...newGameLog, { turnOrder, act: 'v' }];
-    }
-
-    setGameLog(newGameLog);
-
-    if (card.group !== "Wild") {
-      nextTurn(newReverse, turnOrder, players, turnFactor);
-    } else {
-      setPickingColor(player);
-    }
-
-    if (win) {
-      setWinner(player);
-    }
-
-  }
-
-  const draw = (deck:UnoDeck, player:UnoPlayer, numCards:number = 1, players:UnoPlayer[]) => {
-    const newDeck = { ...deck };
-    let newPile = [...discardPile];
-    let newPlayers = players;
-
-    for (let i = 0; i < numCards; i++) {
-      const drawnCard = newDeck.cards.shift();
-
-      if (newDeck.cards.length === 0) {
-        newDeck.cards = shuffleDeck({ name: "discard", cards: discardPile.slice(1) }).cards;
-        newDeck.cards.unshift(discardPile[0]);
-        newPile = [discardPile[0]];
-      }
-
-      newPlayers = players.map(p => {
-        if (p.name === player.name) {
-          return {
-            ...p,
-            cards: [...p.cards, drawnCard as PlayingCardUno]
-          };
-        }
-
-        return p;
-      });
-    }
-
-    setDeck(newDeck);
-    setDiscardPile(newPile);
-
-    return { deck: newDeck, players: newPlayers };
-  }
-
-  const passTurn = () => {
-    const current = playerByTurnOrder(turnOrder);
-
-    // Draw 1 card
-    const { players: newPlayers } = draw(deck, current, 1, players);
-    
-    nextTurn(reverse, turnOrder, newPlayers, 1);
-    setPlayers(newPlayers);
-    setGameLog([...gameLog, { turnOrder, act: 'd' }]);
   };
 
-  const cpuTurn = (player:UnoPlayer) => {
-    // Fetch playable cards
-    const playables = playableCards(currentCard as PlayingCardUno, player);
-
-    if (playables.length === 0) {
-      passTurn();
-      return;
-    }
-
-    let colorCounts: { [key in CardColor]: number } = {
-      Blue: 0,
-      Green: 0,
-      Red: 0,
-      Yellow: 0,
-      Wild: 0
-    };
-
-    player.cards.forEach(card => {
-      colorCounts[card.group as CardColor]++;
+  const handleLeaveGame = () => {
+    apiPost({
+      uri: `http://localhost:8000/uno/game/${gameId}/leave`,
+      payload: { },
+      onSuccess: processGameState,
+      onError: processGameStateError
     });
+  };
 
-    if (playables.length === 1) {
-      // If there is only one playable card, play it
-      playCard(playables[0], player);
-    }
-    else if (playables.length > 1) { 
-      if (colorCounts.Wild > 0) {
-        // If player has a Wild, and other playable options, then choose the non-Wild playable card of the highest value from the smallest-count color group
-        let highestValue = 0;
-        let chosenCard = playables[0];
-
-        const smallestPlayableGroup = Object.keys(colorCounts).reduce((a, b) => colorCounts[a as CardColor] < colorCounts[b as CardColor] ? a : b) as CardColor;
-
-        // Pick the highest value card from the smallest group
-        playables.forEach(card => {
-          if (card.value && card.value > highestValue && card.group === smallestPlayableGroup) {
-            highestValue = card.value;
-            chosenCard = card;
-          }
-        });
-
-        playCard(chosenCard, player);
-      } else {
-        // If there are multiple playable cards, choose the one with the highest value from the highest count color group
-        let highestValue = 0;
-        let chosenCard = playables[0];
-
-        const largestPlayableGroup = Object.keys(colorCounts).reduce((a, b) => colorCounts[a as CardColor] > colorCounts[b as CardColor] ? a : b) as CardColor;
-
-        // Pick the highest value card from the largest group
-        playables.forEach(card => {
-          if (card.value && card.value >= highestValue && card.group === largestPlayableGroup) {
-            highestValue = card.value;
-            chosenCard = card;
-          }
-        });
-
-        playCard(chosenCard, player);
+  const handleDeleteGame = () => {
+    apiPost({
+      uri: `http://localhost:8000/uno/game/${gameId}/delete`,
+      payload: { },
+      onSuccess: (response) => {
+        router.push('/uno');
+      },
+      onError: (error) => {
+        console.error('error', error);
       }
-    }
-  }
-
-  useEffect(() => {
-    if (!started || winner) return;
-    
-    if (!pickingColor?.cpu) return;
-
-    const colors = ["Red", "Green", "Blue", "Yellow"];
-    const colorCounts = colors.map(color => {
-      return pickingColor.cards.filter(card => card.group === color).length;
     });
-
-    // If the player still has a Wild or Wild Draw 4...
-    if (pickingColor.cards.find(card => card.group === "Wild")) {
-      // Find your least common color
-      const leastCommonColor = colors[colorCounts.indexOf(Math.min(...colorCounts))];
-
-      pickColor(pickingColor, leastCommonColor as CardColor);
-    } else {
-      // If not, find the most common color
-      const mostCommonColor = colors[colorCounts.indexOf(Math.max(...colorCounts))];
-    
-      pickColor(pickingColor, mostCommonColor as CardColor);
-    }
-
-
-  }, [pickingColor, pickColor]);
-
-  useEffect(() => {
-    if (!started) return;
-
-    const { deck: newDeck, players: newPlayers } = deal(players, deck, startingHandSize);
-
-    setPlayers(newPlayers);
-    setDeck(newDeck);
-
-    // Grab the top card from the deck and place it in the discard pile, and update deck state
-    const topCard = newDeck.cards.shift();
-
-    if (topCard) {
-      setDiscardPile([topCard, ...discardPile]);
-      setDeck({ ...newDeck });
-      setCurrentCard(topCard);
-    }
-
-    // Randomize the turn order based on the number of players
-    setTurnOrder(Math.floor(Math.random() * players.length));
-  }, [started]);
-
-  useEffect(() => {
-    if (!started || Boolean(winner)) return;
-
-    const currentPlayer = playerByTurnOrder(turnOrder);
-
-    // If it's a CPU player, then let the CPU take its turn after a delay based on the CPU speed
-    if (currentPlayer.cpu) {
-      setTimeout(() => {
-        cpuTurn(currentPlayer);
-      }, cpuSpeed);
-    }
-  }, [started, turnOrder]);
+  };
 
   const WildDialog = () => {
-    if (!pickingColor || !pickingColor.isCurrentUser) return null;
+    if (roundWinner || !pickingColor || !pickingColor.isCurrentUser || !started || wildColor || Boolean(winner)) return null;
+
+    const ColorButton = ({ color }: { color: CardColor }) => (
+      <Button label={color} className={`bg-${color.toLowerCase()} text-white`} onClick={
+        () => { 
+          apiPost({
+            uri: `http://localhost:8000/uno/game/${gameId}/move`,
+            payload: { action: 'color', color: color },
+            onSuccess: processGameState,
+            onError: processGameStateError
+          });
+        }
+      } />
+    );
 
     return (
       <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 z-50 flex justify-center items-center">
         <div className="bg-gray-400 p-4 rounded-lg">
           <h3>Choose a color</h3>
           <div className="flex justify-center">
-            <Button label="Red" onClick={() => pickColor(pickingColor, "Red")} className="bg-red text-white" />
-            <Button label="Green" onClick={() => pickColor(pickingColor, "Green")} className="bg-green text-white" />
-            <Button label="Blue" onClick={() => pickColor(pickingColor, "Blue")} className="bg-blue text-white" />
-            <Button label="Yellow" onClick={() => pickColor(pickingColor, "Yellow")} className="bg-yellow text-black" />
+            <ColorButton color="Red" />
+            <ColorButton color="Green" />
+            <ColorButton color="Blue" />
+            <ColorButton color="Yellow" />
           </div>
         </div>
       </div>
     );
   }
 
-  const UserHand = () => {
-    const userPlayer = players.find(player => player.isCurrentUser);
+  const RoundDialog = () => {
+    if (!roundWinner) return null;
 
-    if (!userPlayer) return null;
-
-    const yourTurn = playerByTurnOrder(turnOrder).isCurrentUser;
-
-    const playables:PlayingCardUno[] = yourTurn ? playableCards(currentCard as PlayingCardUno, userPlayer) : [];
-  
     return (
-      <div className="clear-both block">
-          {Boolean(started && !winner) && <h3>Your Hand</h3>}
-          <div className="hand-wrapper">
-            <div className="uno hand relative">
-                {userPlayer.cards.map((card, idx) => (
-                  (
-                    <div key={card.id} style={{ position: "absolute", left: `${idx * 50}px` }} className={`${playables.includes(card) ? 'playable' : ''}`}>
-                      <UnoCard card={card} playable={playables.includes(card)} player={userPlayer} onClick={handleCardClick} />
-                    </div>
-                  )
-                  ))}
-            </div>
-          </div>
+      <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 z-50 flex justify-center items-center">
+        <div className="bg-gray-400 p-4 rounded-lg">
+          <h3>{roundWinner.user_id === user?.id ? 'You win' : `${roundWinner.name} wins`} the round!</h3>
+          <Button label="Continue" hidden={!userStarter} onClick={() => 
+            apiPost({
+              uri: `http://localhost:8000/uno/game/${gameId}/move`,
+              payload: { action: 'next-round' },
+              onSuccess: processGameState,
+              onError: processGameStateError
+            })
+          } />
+
+          { !userStarter && <p>Waiting for the game starter to start next round...</p> }
+        </div>
       </div>
     );
   }
 
+  const pass = () => {
+    apiPost({
+      uri: `http://localhost:8000/uno/game/${gameId}/move`,
+      payload: { action: 'pass' },
+      onSuccess: processGameState,
+      onError: processGameStateError
+    });
+  };
+
+  const EffectTextDisplay = () => {
+    if (!effectText) return null;
+
+    // Function to trigger the effect
+    const triggerEffect = () => {
+      // Set timeout to hide text after animations have completed
+      setTimeout(() => {
+        setEffectText(null);
+      }, 400); // Total 400ms for the full animation sequence (300ms scale + 100ms fade)
+    };
+  
+    useEffect(() => {
+      // Example trigger for demonstration: triggers on component mount
+      triggerEffect();
+    }, []);
+  
+    return (
+      <div className="effect-text">{effectText}</div>
+    );
+  };
+  
+  const prepPlayers = (response: AxiosResponse<any,any>, setUserStarter: Function, user: (PortalUser | null), setUserJoined: Function) => {
+    let newPlayers = response.data.players;
+    setUserStarter(response.data.starter?.user_id === user?.id);
+
+    for (let i = 0; i < newPlayers.length; i++) {
+      if (newPlayers[i].user_id && user && newPlayers[i].user_id === user.id) {
+        newPlayers[i].isCurrentUser = true;
+        setUserJoined(true);
+  
+        if (newPlayers[i].cards) {
+          newPlayers[i].cards = newPlayers[i].cards.map((card: string) => cardFromCode(card));
+        }
+      } else if (!isNaN(newPlayers[i].card_count)) {
+        newPlayers[i].cards = Array.from({ length: newPlayers[i].card_count }, (_, j) => ({ group: "Red", face: "-1" }));
+      }
+    }
+    return newPlayers;
+  }
+  
+  // console.log('players', players);
+
+  const startBtn = startButton({ started, handleStartGame, winner, userStarter, playerCount: players.length });
+  const joinBtn = joinButton({ userJoined, handleJoinGame, started, winner, userStarter });
+  const deleteBtn = deleteButton({ userStarter, handleDeleteGame, started });
+  const leaveBtn = leaveButton({ userJoined, handleLeaveGame, winner, started });
+
+  const gameFull = players.length >= maxPlayers || started;
+
   return (
     <main>
-    <Box className="inner-container">
-      <SiteHeader />
+      <Box className="inner-container">
+        <SiteHeader />
 
-        <ContentArea>  
-          <ButtonWell actions={[
-            { label: "Start Game", onClick: handleStartGame, hidden: Boolean(started || winner) },
-            ]} />
-
-          <CurrentCard card={currentCard as PlayingCardUno} />
-          {Boolean(started && !winner) && <p>Current Turn: {playerByTurnOrder(turnOrder).name}</p>}
+        <ContentArea>
+          <a href="/games/uno"><h2>Uno</h2></a>
+          <h4 className="text-shadow-xs">Game #{gameId}</h4>
+          <EffectTextDisplay />
+          
+          { started && <CurrentCard card={currentCard as PlayingCardUno} wildColor={wildColor} /> }
+          { <PlayersDisplay numRectangles={players.length} {...{ players, turnOrder, reverse, started }} /> }
           {Boolean(winner) && <p>{winner?.name} wins!</p>}
 
-          <UserHand />
+          <UserHand {...{ players, started, handleCardClick, wildColor, turnOrder }} currentCard={currentCard as PlayingCardUno} winner={Boolean(winner)} />
+
           <div className="relative">
-            {started && <ButtonWell actions={[
-              { label: "Pass", onClick: passTurn, hidden: !playerByTurnOrder(turnOrder).isCurrentUser || Boolean(!started || winner) }
+            {started && <ButtonWell className="bottom-right" actions={[
+              { label: "Pass", onClick: pass, hidden: !playerByTurnOrder(turnOrder, players).isCurrentUser || Boolean(!started || winner) }
             ]} />}
           </div>
 
-          <GameLog />
+            {/* public/circle-arrow.png */}
+          
+          <GameLog {...{ gameLog, players, deck, discardPile, turnOrder, currentCard, reverse, winner, pickingColor, effectText }} />
+          <Scoreboard {...{ players, turnOrder }} />
+
+          <ButtonWell className="bottom-right" 
+            confirm = { userStarter ? startBtn : (!userJoined ? joinBtn : undefined) }
+            cancel = { userStarter ? deleteBtn : (userJoined ? leaveBtn : undefined) }
+          />
+
+          <ButtonWell className="bottom-left" actions={[
+            { label: "Invite Player", hidden: gameFull || !userStarter, onClick: () => {
+              console.log('Invite Player');
+              apiPost({
+                'uri': `http://localhost:8000/uno/game/${gameId}/invite`,
+                'payload': {},
+                'onSuccess': (response) => {
+                  console.log('response', response);
+                },
+                'onError': (error) => {
+                  console.error('error', error);
+                }});
+            } },
+            { label: "Add CPU Player", hidden: gameFull || !userStarter, onClick: () => {
+              console.log('Add CPU Player');
+              apiPost({
+                'uri': `http://localhost:8000/uno/game/${gameId}/add-cpu`,
+                'payload': {},
+                'onSuccess': processGameState,
+                'onError': processGameStateError
+              });
+            }},
+          ]} />
+
           <WildDialog />
+          <RoundDialog />
         </ContentArea>
-    </Box>
-  </main>
+      </Box>
+    </main>
   );
 
 };

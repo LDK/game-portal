@@ -32,3 +32,44 @@ body {
     text-wrap: balance;
   }
 }
+
+
+.form-group label {
+  margin-right: .5rem;
+}
+
+.styled-text-input {
+  @apply rounded-sm;
+  border: 1px solid #ccc;
+  background-image: linear-gradient(135deg, #99CCFF 0%, #88BBEE 90%, #77AADD 100%) !important;
+  background-clip: text;
+  -webkit-text-fill-color: #000;
+  background-color: #99CCFF !important;
+}
+
+.form-group input[type="text"], .form-group input[type="password"] {
+  @apply styled-text-input;
+}
+
+.form-group input:-webkit-autofill, .form-group input:-internal-autofill-selected {
+  @apply styled-text-input;
+}
+
+input:-webkit-autofill,input:-webkit-autofill:hover, input:-webkit-autofill:focus { 
+  @apply styled-text-input !important;
+}
+input:-autofill,input:-autofill:hover, input:-autofill:focus { 
+  @apply styled-text-input;
+}
+
+.bottom-right {
+  position: absolute;
+  bottom: 8px;
+  right: 16px;
+}
+
+.bottom-left {
+  position: absolute;
+  bottom: 8px;
+  left: 16px;
+}

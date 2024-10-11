@@ -1,11 +1,4 @@
-import { Deck, PlayingCard } from "../../types/types";
-import { UnoPlayer } from "./game/[gameId]/page";
-
-export type CardFace = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | 'Skip' | 'Reverse' | 'Draw Two' | 'Wild' | 'Draw Four';
-export type CardColor = "Red" | "Green" | "Blue" | "Yellow" | "Wild";
-export const unoColors:CardColor[] = ["Red", "Green", "Blue", "Yellow", "Wild"];
-export type PlayingCardUno = Omit<PlayingCard, "group"> & { group: CardColor; face: CardFace };
-export type UnoDeck = Omit<Deck, "cards"> & { cards: PlayingCardUno[] };
+import { UnoDeck, unoColors, CardFace, UnoPlayer, PlayingCardUno, CardColor } from "./types";
 
 export const buildDeck = ():UnoDeck => {
   let id:number = 1;
@@ -78,7 +71,8 @@ export const buildDeck = ():UnoDeck => {
       value: 50,
       group: "Wild",
       face: "Wild",
-      short: 'W'
+      short: 'W',
+      effect: "wild"
     });
     id++;
   }
@@ -130,12 +124,86 @@ export const deal = (players:UnoPlayer[], deck:UnoDeck, numCards:number = 7):Dea
   return { deck, players: newPlayers };
 };
 
-export const playableCards = (currentCard:PlayingCardUno, player:UnoPlayer):PlayingCardUno[] => {
-  const matchingCards = player.cards.filter(card => card.face === currentCard.face || card.group === currentCard.group || card.name === "Wild");
-  const drawFours = player.cards.filter(card => card.name === "Draw Four");
+export const cardFromCode = (code:string):PlayingCardUno => {
+  // code will be formatted like 'b3', 'wd4', 'yd', 'w' or 'rs'
+  const groups:{[key:string]:CardColor} = {
+    r: "Red",
+    g: "Green",
+    b: "Blue",
+    y: "Yellow",
+    w: "Wild"
+  };
 
-  console.log('drawFours', drawFours);
+  const values:{[key:string]:number} = {
+    0: 0,
+    1: 1,
+    2: 2,
+    3: 3,
+    4: 4,
+    5: 5,
+    6: 6,
+    7: 7,
+    8: 8,
+    9: 9,
+    s: 20,
+    r: 20,
+    d: 20,
+    d4: 50,
+    w: 50
+  };
+
+  const faceNames:{[key:string]:CardFace} = {
+    0: "0",
+    1: "1",
+    2: "2",
+    3: "3",
+    4: "4",
+    5: "5",
+    6: "6",
+    7: "7",
+    8: "8",
+    9: "9",
+    r: "Reverse",
+    s: "Skip",
+    d4: "Draw Four",
+    d: "Draw Two",
+    w: "Wild",
+  }
+
+  // let [group, face] = code.split('');
+
+  const group = code[0];
+  const face = code.slice(1) || 'w';
+  
+  const card:PlayingCardUno = {
+    id: 0,
+    name:  code === 'w' ? 'Wild' : `${groups[group]}${face ? ` ${faceNames[face]}` : ''}`,
+    value: face ? values[face] : 50,
+    group: groups[group],
+    short: face ? face.toUpperCase() : 'W',
+    face: faceNames[face] || 'Wild'
+  };
+
+  return card;
+
+}
+
+export const playableCards = (currentCard:PlayingCardUno, player:UnoPlayer, wildColor?:CardColor):PlayingCardUno[] => {
+  // console.log('currentCard', currentCard);
+  // console.log('player', player);
+  const matchingCards = player.cards.filter(card => 
+    card.face === currentCard.face 
+    && card.face !== "Draw Four"
+    || (card.group === currentCard.group && card.group !== "Wild")
+    || card.name === "Wild"
+    || card.group === wildColor);
+  const drawFours = player.cards.filter(card => card.name.includes("Draw Four"));
+
+  console.log('currentCard', currentCard);
+  // console.log('all cards', player.cards);
   console.log('matchingCards', matchingCards);
+  console.log('drawFours', drawFours);
+  console.log('wildColor', wildColor);
 
   if (matchingCards.length === 0) {
     return drawFours; // This will either be empty or contain only Draw Four Wild cards

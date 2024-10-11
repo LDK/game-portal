@@ -2,13 +2,38 @@
 
 @layer components {
   .uno.playing-card {
-    @apply border-white flex content-center justify-center align-middle flex-wrap;
+    @apply border-white flex content-center justify-center align-middle flex-wrap relative;
     border-width: 3px;
+  }
+
+  .game-log {
+    @apply hidden md:block;
+    width: 276px;
+  }
+
+  .scoreboard {
+    @apply hidden lg:block;
+    width: 176px;
   }
 
   .uno.playing-card .inner {
     @apply border-black border-solid h-5/6 sm:h-3/4 w-5/6 sm:w-3/4 flex content-center justify-center flex-wrap rounded-md bg-white align-middle text-black;
     border-width: 1px;
+  }
+
+  .uno.playing-card .top-left, .uno.playing-card .bottom-right {
+    @apply absolute text-black font-extrabold rounded-3xl bg-white;
+    font-size: .8rem;
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+  .uno.playing-card .top-left {
+    top: 2px;
+    left: 3px;
+  }
+  .uno.playing-card .bottom-right {
+    bottom: 2px;
+    right: 3px;
   }
 
   .uno.playing-card .inner > * {
@@ -21,7 +46,7 @@
   }
 
   .uno.hand .playable {
-    top: -1rem;
+    top: -1.5rem;
     z-index: 2;
   }
 
@@ -36,4 +61,90 @@
   .bg-yellow {
     background-color: #ffff00;
   }
+
+  .circle-container {
+    position: relative;
+    width: 300px;  /* Adjust size as needed */
+    height: 250px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .circle {
+    position: relative;
+    border: 2px solid black;
+    border-radius: 50%;
+  }
+  
+  .circle-xs {
+    right: 20px;
+    top: 0;
+  }
+
+  .circle-md {
+    left: 140px;
+    top: 10px;
+  }
+
+  .circle-lg {
+    left: 220px;
+    top: 20px;
+  }
+
+  .circle-xl {
+    left: 200px;
+    top: 20px;
+  }
+
+  .circle-container {
+    @apply absolute circle-xs md:circle-md lg:circle-lg xl:circle-xl;
+  }
+
+  .circle-arrow {
+    @apply absolute;
+    width: 2.5rem;
+    height: 2.5rem;
+    top: calc(50% - 1.25rem);
+    left: calc(50% - 1.25rem);
+    transform: scaleX(-1) !important;
+  }
+
+  .circle-arrow.reverse {
+    transform: scaleX(1) !important;
+  }
+
+  .rectangle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    margin-top: -30px; /* Half of the height */
+    margin-left: -50px; /* Half of the width */
+    background-color: white;
+    border: 1px solid black;
+  }
+  
+}
+
+@keyframes scaleUp {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(4);
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.effect-text {
+  @apply fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-3xl text-red-500;
+  animation: scaleUp 0.4s forwards, fadeOut 0.1s 0.3s forwards;
 }

@@ -3,8 +3,6 @@ import { ButtonProps } from "@/app/types/types";
 const Button = (btnOpts:ButtonProps) => {
   if (!btnOpts) return null;
 
-  console.log("Button", btnOpts);
-
   if (btnOpts.hidden) return null;
 
   return (

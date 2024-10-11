@@ -1,9 +1,13 @@
+.header {
+  @apply font-bold font-serif my-4 text-xl;
+}
+
 .header-text {
-  @apply font-bold font-serif my-4 text-xl text-shadow-xs;
+  @apply header text-shadow-xs;
 }
 
 h1, h2, h3, h4, h5, h6 {
-  @apply header-text;
+  @apply header;
 }
 
 h1 {

@@ -1,7 +1,7 @@
 import { PaddingOptions, MarginOptions, PositionOptions } from "../types/types";
 
 type BoxProps = {
-  className: string;
+  className?: string;
   children: React.ReactNode;
 } & PaddingOptions & MarginOptions & PositionOptions;
 

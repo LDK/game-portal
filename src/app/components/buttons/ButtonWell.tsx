@@ -3,7 +3,7 @@ import Action from "./Action";
 import Cancel from "./Cancel";
 import Confirm from "./Confirm";
 
-type ButtonTypeProps = {
+export type ButtonTypeProps = {
   label?: string;
   onClick?: () => void;
   hidden?: boolean;

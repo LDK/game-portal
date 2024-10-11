@@ -1,3 +1,12 @@
+export type GameTitle = {
+  url: string;
+  title: string;
+  releaseDate: string;
+  category: string;
+  description: string;
+  coverArt?: string;
+}
+
 export type PaddingOptions = {
   pt?: number;
   pb?: number;
