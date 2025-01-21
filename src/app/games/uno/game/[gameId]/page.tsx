@@ -273,8 +273,6 @@ const UnoGame = () => {
   };
 
   const EffectTextDisplay = () => {
-    if (!effectText) return null;
-
     // Function to trigger the effect
     const triggerEffect = () => {
       // Set timeout to hide text after animations have completed
@@ -288,6 +286,8 @@ const UnoGame = () => {
       triggerEffect();
     }, []);
   
+    if (!effectText) return null;
+
     return (
       <div className="effect-text">{effectText}</div>
     );
