@@ -17,6 +17,10 @@ const nextConfig = {
       {
         source: '/uno/quick',
         destination: '/games/uno/quick', // Maps /uno/quick to /games/uno/quick
+      },
+      {
+        source: '/babylon',
+        destination: '/games/babylon', // Maps /babylon to /games/babylon
       }
       // You can add additional rewrites here as needed
     ];
